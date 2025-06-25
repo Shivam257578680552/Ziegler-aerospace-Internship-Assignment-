@@ -1,0 +1,64 @@
+package tests;
+
+import org.openqa.selenium.WebDriver;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+import pages.*;
+import utils.WebDriverFactory;
+
+import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+public class CartWorkflowTest {
+    WebDriver driver;
+    HomePage homePage;
+    ProductPage productPage;
+    CartPage cartPage;
+
+    @BeforeMethod
+    public void setup() {
+        driver = WebDriverFactory.getDriver();
+        homePage = new HomePage(driver);
+        productPage = new ProductPage(driver);
+        cartPage = new CartPage(driver);
+    }
+
+    @Test
+    public void testAddToCartAndCheckout() throws Exception {
+        homePage.navigateToHomePage();
+        homePage.clickRandomCategory();
+
+        productPage.addRandomProductsToCart(2);
+        int cartCount = productPage.getCartCount();
+        Assert.assertEquals(cartCount, 2, "Cart count mismatch.");
+
+        cartPage.openCart();
+        List<String> productNames = ProductPage.selectedProducts
+                .stream().map(p -> p.get("name")).collect(Collectors.toList());
+        Assert.assertTrue(cartPage.verifyProductsInCart(productNames), "Products not found in cart");
+
+        cartPage.proceedToCheckout();
+
+        // Logging summary
+        try (PrintWriter writer = new PrintWriter(new FileWriter("report.txt", true))) {
+            writer.println("===== Cart Summary =====");
+            for (Map<String, String> product : ProductPage.selectedProducts) {
+                writer.println("Name: " + product.get("name"));
+                writer.println("Price: " + product.get("price"));
+                writer.println("URL: " + product.get("url"));
+                writer.println("-------------------------");
+            }
+            writer.println("Total Cost: $" + cartPage.getTotalCost());
+        }
+    }
+
+    @AfterMethod
+    public void tearDown() {
+        WebDriverFactory.quitDriver();
+    }
+}
